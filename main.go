@@ -5,12 +5,22 @@ import (
 	"io"
 	"os"
         "time"
+        "context"
+        "strconv"
 	"math/rand"
         "mime/multipart"
 	"net/http"
 	"html/template"
 	"path/filepath"
+
+        "go.mongodb.org/mongo-driver/mongo"
+        "go.mongodb.org/mongo-driver/mongo/options"
 )
+
+type Post struct {
+    Name string `json:"name"`
+    Expiration int64 `json:"expiration"`
+}
 
 // this should be variable... once all 5 length fill up move to 6
 var HASH_LENGTH = 5
@@ -18,10 +28,19 @@ var HASH_LENGTH = 5
 var tpl = template.Must(template.ParseFiles("index.html"))
 
 func main() {
+        // thread for cleaning database
+        go cleanup()
+
+        // setup and serve
 	mux := buildMux()
 
-
 	http.ListenAndServe(":8000", mux)
+}
+
+func cleanup() {
+    for range time.Tick(time.Second * 10) {
+        fmt.Println("Here lets clean up expired / over viewed files")
+    }
 }
 
 func buildMux() *http.ServeMux{
@@ -41,6 +60,20 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tpl.Execute(w, nil)
 }
 
+func GetClient() *mongo.Database {
+	client, err := mongo.Connect(
+        context.Background(),
+        options.Client().ApplyURI("mongodb://127.0.0.1/"),
+    )
+
+    if err != nil {
+        fmt.Println(fmt.Errorf("Error: %v", err))
+    }
+
+    return client.Database("chadpaste")
+}
+
+
 func createPostHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		r.ParseMultipartForm(32 << 20) // 32MB upload limit
@@ -50,7 +83,8 @@ func createPostHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// TODO: maybe propogate error up to get a sense if it actually saved
-		name := saveFile(file, header)
+                i, err := strconv.ParseInt(r.FormValue("expiration")[0:], 10, 64);
+		name := saveFile(file, header, i)
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(201)
 		w.Write([]byte(name))
@@ -59,13 +93,12 @@ func createPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func saveFile(file multipart.File, header *multipart.FileHeader) string {
+func saveFile(file multipart.File, header *multipart.FileHeader, expir int64) string {
 	defer file.Close()
 	var name = genAndCheckNewURL() + filepath.Ext(header.Filename)
 	// check collision
 	if _, err := os.Stat("./f/" + name); err == nil {
 		// path/to/whatever exists
-
 	}
 	f, err := os.OpenFile("./f/" + name, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
@@ -74,9 +107,19 @@ func saveFile(file multipart.File, header *multipart.FileHeader) string {
 	}
 	defer f.Close()
 	io.Copy(f, file)
+        post := Post{}
+        post.Name = name
+        post.Expiration = expirationEpoch(expir)
+        col := GetClient().Collection("posts")
+        col.InsertOne(context.TODO(), post)
 	return name
 }
 
+
+func expirationEpoch(addedTime int64) int64 {
+    now := time.Now().Unix()
+    return now + addedTime
+}
 
 // calhoun.io inspo 
 const urlAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234566789"

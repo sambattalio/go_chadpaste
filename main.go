@@ -122,7 +122,7 @@ func FileServerWithMongo(root http.FileSystem) http.Handler {
             fmt.Println(fmt.Errorf("Error1: %v", err))
         }
         if post != nil {
-            if (post["expirationtype"].(int32) == 1 && post["expiration"].(int64) < 1) {
+            if (post["expirationtype"].(int32) == 1 && post["expiration"].(int64) < 0) {
                 col.DeleteOne(context.TODO(), bson.M{"name": r.URL})
                 os.Remove("f/" + r.URL.Path);
             }

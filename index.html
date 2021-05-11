@@ -23,12 +23,6 @@
 	  background-size: 25% 25%, 100% 100%;
 	}
 
-	#drop_zone {
-  		border: 5px solid black;
-  		width:  200px;
-  		height: 100px;
-	}
-
         #test {
             width: 30px;
         }
@@ -36,13 +30,18 @@
   </head>
   <body>
     <marquee behavior="alternate"><h1>ChadPaste</h1></marquee>
-    <input id='button' type="file" name="pic" onchange="button_upload(event)">
-    <div id="box" style="min-height: 200px; white-space: pre; border: 1px solid black;"
-         ondragenter="document.getElementById('box').textContent = ''; event.stopPropagation(); event.preventDefault();"
-         ondragover="event.stopPropagation(); event.preventDefault();"
-         ondrop="event.stopPropagation(); event.preventDefault(); doDrop(event);">
-         DROP FILES HERE FROM FINDER OR EXPLORER
-    </div>
-    <div id="content" style="width: 100%"> </div>
+    <form id="submitForm">
+        <input id='file_drop' type="file" name="pic">
+        <p>Post Expiration</p>
+        <input type="radio" id="seconds" name="expir" value = "seconds">
+        <label for="seconds">Seconds</label><br>
+        <input type="radio" id="views" name="expir" value = "views">
+        <label for="views">Views</label><br>
+        <input type="radio" id="none" name="expir" value = "none" checked>
+        <label for="none">None</label><br> 
+        <input id='expiration' type='number' min=0 max=31556952 value=86400>
+        <div id="content" style="width: 100%"> </div>
+        <input type="button" value="Submit" class="submitButton" onClick="button_upload()">
+    </form>
   </body>
 </html>

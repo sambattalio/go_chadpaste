@@ -1,27 +1,64 @@
 
-function button_upload(ev) {
-    let file = ev.target.files[0];
+function button_upload() {
+    let file = document.getElementById('file_drop').files[0];
+    console.log(file)
+    let test = new File([file], file.name, { type: file.type });
     let formData = new FormData();
 
-    formData.append("file", file);
-    formData.append("expiration", 3000);
-    console.log("here");
+    formData.append("file", test);
+    formData.append("expiration", document.getElementById('expiration').value);
+
+    var radios = document.getElementsByName('expir');
+    for (var i = 0, length = radios.length; i < length; i++) {
+      if (radios[i].checked) {
+        // do whatever you want with the checked radio
+        formData.append("expiration_type", radios[i].value);
+
+        // only one radio can be logically checked, don't check the rest
+        break;
+      }
+    }
     fetch('/post', {method: "POST", body: formData})
       .then(function(response) {
         return response.text();
     }).then(function(data) {
-        window.location.href = '?' + data;
-    });
-    console.log("here 2");
+       window.location.href = '?' + data;
+    }); 
 }
-
 
 function get_query() {
   var query = window.location.search.substring(1);
-
   // If there was some kind of query string
   if (query) {
     var file_location = 'f/' + query;
+
+    // delete expiration option and replace with info
+    document.getElementById('submitForm').remove();
+
+    var expir_info = document.createElement("text");
+    document.body.appendChild(expir_info);
+    fetch("/expir/" + query, {method: "GET"})
+      .then(function(response) {
+        return response.json();
+      }).then(function(data) {
+        if (data['type'] == -2) {
+            window.location.href = '/';
+        } else if (data['type'] == 1) {
+            expir_info.innerText = "Expires in " + data['value'] + " views";
+        } else if (data['type'] == 0) {
+            var date = new Date(data['value'] * 1000);
+            console.log(date);
+            var now  = new Date();
+            date = date.getTime() - now.getTime()
+            if (date < 0) {
+                window.location.href = '/';
+            }
+            time = date / 1000;
+
+            expir_info.innerText = "Expires in: " + time + "seconds";
+        } else {
+        }
+      });
 
     var raw_btn = document.createElement("BUTTON");
     raw_btn.innerText = "RAW FILE";
@@ -78,30 +115,10 @@ function get_query() {
 	return false;
 }
 
+
 window.onload = function() {
     if (get_query()) {
         $('#box').remove();
         $('#button').remove();
-    }
-};
-
-window.addEventListener("dragover",function(e){
-    e = e || event;
-    e.preventDefault();
-},false);
-window.addEventListener("drop",function(e){
-    e = e || event;
-    e.preventDefault();
-},false);
-
-function dragover_handler(ev) {
-    ev.preventDefault();
-}
-window.doDrop = function(ev) {
-    var dti = ev.dataTransfer.files;
-    if (dti === undefined) {
-        console.log("DataTransferItem NOT supported.");
-        console.log("DataTransferItemList NOT supported.");
-    } else {
     }
 }
